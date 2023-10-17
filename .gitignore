@@ -51,3 +51,5 @@ rsconnect/
 .env
 .sql
 
+database_creation.sql
+*.env
