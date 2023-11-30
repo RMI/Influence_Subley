@@ -3,37 +3,6 @@
 #' FUNCTIONS #
 #############
 
-#' function that 1. binds the Campaign ID to all final dataframes and 2. pushes the data to a google sheet
-#' if data already exists in sheet, df is bound to existing data and pushed
-pushData <- function(df, sheetName){
-  
-  #' bind campaign ID
-  df <- df %>% 
-    mutate(CAMPAIGN_ID = campaignID) %>% 
-    relocate(CAMPAIGN_ID, .before = 1)
-  
-  tryCatch({ 
-    
-    existingData <- read.xlsx(file = ss, sheet = sheetName) %>% 
-      rbind(df)
-    
-    #' if development mode is on, overwrite data in sheet
-    if(mode == 'development'){
-      write.xlsx(df, file = ss, sheetName = sheetName, overwrite = T, append = T) 
-      return(df)
-    } else {
-      write.xlsx(existingData, file = ss, sheetName = sheetName, overwrite = F) 
-      return(existingData)
-    }
-    
-    
-  }, error = function(e) { 
-    write.xlsx(df, file = ss, sheetName = sheetName) 
-    return(df) 
-  })
-
-}
-
 
 #### GOOGLE ANALYTICS ####
 
@@ -45,22 +14,22 @@ getPageData <- function(df){
     url <- as.character(df[i, 'pageURL'])
     
     #' get page titles
-    tryCatch( { 
+     tryCatch( { 
       url_tb <- url %>%
-        read_html() %>% 
-        html_nodes('head > title') %>% 
-        html_text() %>% 
-        as.data.frame() %>% 
-        rename(title = 1) 
+        read_html() %>%
+        html_nodes('head > title') %>%
+        html_text() %>%
+        as.data.frame() %>%
+        rename(title = 1)
       
-      df[i, 'pageTitle'] <- url_tb[1, 'title']
-      
-    }, error = function(e){
-      df[i, 'pageTitle'] <- NA
-    })
+       df[i, 'pageTitle'] <- url_tb[1, 'title']
+       
+     }, error = function(e){
+       df[i, 'pageTitle'] <- NA
+     })
     
-    #' get contet type from page metadata
-    if(df[i, 'site'] == 'rmi.org'){
+    #' get content type from page metadata
+    # if(df[i, 'site'] == 'rmi.org'){
       tryCatch( { 
         url_tb <- url %>%
           read_html() %>% 
@@ -77,11 +46,11 @@ getPageData <- function(df){
       }, error = function(e){
         df[i, 'metadata'] <- NA
       })
-    } else {
+    #}# else {
       #' categorize as 'New Website' if no metadata is detected
-      df[i, 'metadata'] <- NA
-      df[i, 'pageType'] <- 'New Website'
-    }
+ #     df[i, 'metadata'] <- NA
+  #    df[i, 'pageType'] <- 'New Website'
+  #  }
     
   }
   
@@ -100,7 +69,7 @@ getPageMetrics <- function(propertyID, pages){
   campaignPages <- ga_data(
     propertyID,
     metrics = c('screenPageViews', "totalUsers", "userEngagementDuration"),
-    dimensions = c("pageTitle"),
+    dimensions = c("pageTitle", "date"),
     date_range = dateRangeGA,
     dim_filters = ga_data_filter("pageTitle" == pages),
     limit = -1
@@ -110,7 +79,7 @@ getPageMetrics <- function(propertyID, pages){
            sec = round(engagementDuration %% 60, 0),
            min = (engagementDuration / 60) |> floor(),
            avgEngagementDuration = paste0(min, ':', ifelse(nchar(sec) == 1, paste0('0', sec), sec))) %>% 
-    select(pageTitle, screenPageViews, totalUsers, engagementDuration, avgEngagementDuration) %>% 
+    select(pageTitle, date, screenPageViews, totalUsers, engagementDuration, avgEngagementDuration) %>% 
     left_join(select(pageData, c(pageTitle, pageType, icon)), by = c('pageTitle')) %>% 
     #' remove " - RMI" from end of page titles
     mutate(pageTitle = gsub(' - RMI', '', pageTitle))
@@ -149,7 +118,7 @@ getTrafficSocial <- function(propertyID, pages, site = 'rmi.org'){
   aquisitionSocial <- ga_data(
     propertyID,
     metrics = c("sessions", "screenPageViews"),
-    dimensions = c("pageTitle", "sessionSource", "sessionMedium", 'pageReferrer', 'sessionDefaultChannelGroup'),
+    dimensions = c("pageTitle","date", "sessionSource", "sessionMedium", 'pageReferrer', 'sessionDefaultChannelGroup'),
     date_range = dateRangeGA,
     dim_filters = ga_data_filter("pageTitle" == pages),
     limit = -1
@@ -158,11 +127,10 @@ getTrafficSocial <- function(propertyID, pages, site = 'rmi.org'){
   
   aquisitionSocial <- correctTraffic(aquisitionSocial, type = 'session') %>% 
     filter(medium == 'social') %>% 
-    dplyr::group_by(pageTitle, source) %>% 
+    dplyr::group_by(pageTitle, date, source) %>% 
     dplyr::summarize(Sessions = sum(sessions),
                      PageViews = sum(screenPageViews)) %>% 
-    mutate(site = site,
-           dashboardCampaign = campaignID)
+    mutate(site = site)
   
   return(aquisitionSocial)
 }
@@ -173,7 +141,7 @@ getTrafficGeography <- function(propertyID, pages, site = 'rmi.org'){
   trafficByRegion <- ga_data(
     propertyID,
     metrics = c('screenPageViews'),
-    dimensions = c("pageTitle", 'region', 'country'),
+    dimensions = c("pageTitle","date", 'region', 'country'),
     date_range = dateRangeGA,
     dim_filters = ga_data_filter("pageTitle" == pages),
     limit = -1
@@ -183,8 +151,7 @@ getTrafficGeography <- function(propertyID, pages, site = 'rmi.org'){
     arrange(pageTitle) %>% 
     dplyr::rename('Region Page Views' = screenPageViews) %>% 
     mutate(pageTitle = gsub(' - RMI', '', pageTitle),
-           site = site, 
-           dashboardCampaign = campaignID)
+           site = site)
   
   return(trafficByRegion)
 }
@@ -197,7 +164,7 @@ getAcquisition <- function(propertyID, pages, site = 'rmi.org'){
   aquisitionSessions <- ga_data(
     propertyID,
     metrics = c("sessions"),
-    dimensions = c("pageTitle", "sessionSource", "sessionMedium", "pageReferrer", 'sessionDefaultChannelGroup'),
+    dimensions = c("pageTitle","date", "sessionSource", "sessionMedium", "pageReferrer", 'sessionDefaultChannelGroup'),
     date_range = dateRangeGA,
     dim_filters = ga_data_filter("pageTitle" == pages),
     limit = -1
@@ -205,7 +172,7 @@ getAcquisition <- function(propertyID, pages, site = 'rmi.org'){
     arrange(pageTitle) 
   
   acquisition <- correctTraffic(aquisitionSessions, 'session') %>% 
-    group_by(pageTitle, defaultChannelGroup) %>% 
+    group_by(pageTitle, date, defaultChannelGroup) %>% 
     summarize(Sessions = sum(sessions))
   
   if(site == 'rmi.org'){
@@ -214,23 +181,23 @@ getAcquisition <- function(propertyID, pages, site = 'rmi.org'){
     aquisitionConversions <- ga_data(
       propertyID,
       metrics = c('conversions:form_submit', 'conversions:file_download'),
-      dimensions = c("pageTitle", "source", "medium", 'pageReferrer', 'defaultChannelGroup'),
+      dimensions = c("pageTitle","date", "source", "medium", 'pageReferrer', 'defaultChannelGroup'),
       date_range = dateRangeGA,
       dim_filters = ga_data_filter("pageTitle" == pages),
       limit = -1
     ) %>% 
-      select(pageTitle, source, medium, pageReferrer, defaultChannelGroup, 
+      select(pageTitle,date, source, medium, pageReferrer, defaultChannelGroup, 
              form_submit = 'conversions:form_submit', download = 'conversions:file_download') %>% 
       arrange(pageTitle)
     
     aquisitionConversions <- correctTraffic(aquisitionConversions, 'conversion') %>% 
-      group_by(pageTitle, defaultChannelGroup) %>% 
+      group_by(pageTitle, date, defaultChannelGroup) %>% 
       summarize('Downloads' = sum(download),
                        'Form Submissions' = sum(form_submit)) 
     
     #' 3) bind sessions + conversions 
     acquisition <- acquisition %>% 
-      left_join(aquisitionConversions, by = c('pageTitle', 'defaultChannelGroup')) 
+      left_join(aquisitionConversions, by = c('pageTitle', 'date', 'defaultChannelGroup')) 
     
   }
   
@@ -248,7 +215,7 @@ getReferrals <- function(propertyID, pages, site = 'rmi.org'){
   referrals <- ga_data(
     propertyID,
     metrics = c("sessions"),
-    dimensions = c("pageTitle", "sessionSource", "sessionMedium", "pageReferrer"),
+    dimensions = c("pageTitle","date", "sessionSource", "sessionMedium", "pageReferrer"),
     date_range = dateRangeGA,
     dim_filters = ga_data_filter("pageTitle" == pages),
     limit = -1
@@ -260,7 +227,7 @@ getReferrals <- function(propertyID, pages, site = 'rmi.org'){
     mutate(referrer = sub('(.*)https://', '', pageReferrer),
            referrer = sub('/(.*)', '', referrer)) %>% 
     filter(referrer != 'rmi.org') %>% 
-    group_by(pageTitle, sessionSource, media, mediaType, mediaSubtype) %>% 
+    group_by(pageTitle, date, sessionSource, media, mediaType, mediaSubtype) %>% 
     summarise(sessions = sum(sessions)) %>% 
     filter(sessions > 2) %>% 
     mutate(site = site,

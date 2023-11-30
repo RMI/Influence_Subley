@@ -53,3 +53,5 @@ rsconnect/
 
 database_creation.sql
 *.env
+*.csv
+*.xlsx
