@@ -15,7 +15,7 @@ weekBefore <- paste(as.Date(currentDate) - days(7))
 oneYearAgo <- ymd(currentDate) - years(1)
 
 
-twoBefore <- paste(as.Date(currentDate) - days(2))
+#twoBefore <- paste(as.Date(currentDate) - days(2))
 ## GA Authentication
 ga_auth(email = "ghoffman@rmi.org")
 
@@ -46,7 +46,7 @@ con <- dbConnect(
 
 # dbWriteTable(con, 'geographyTraffic', geographyTraffic)
 
- a <- dbListTables(con)
+ # a <- dbListTables(con)
 # 
 # b <- as.character("allTraffic" , "campaignNewsletters" ,"campaignPosts"  ,  "contentSummary" ,   "donations", 
 #           "geographyTraffic"  ,  "mediaReferrals"  ,    "SFcampaigns"   ,      "socialTraffic"    ,   "targetCampaign")
@@ -297,9 +297,9 @@ dfs <- list("traffic_all" = traffic_all, "traffic_social" = traffic_social,
 
 
 # Should be able to loop import
-for(i in dfs){
-  dbAppendTable(con, name =  i, value = i)
-}
+# for(i in dfs){
+#   dbAppendTable(con, name =  i, value = i)
+# }
 
 # If not, individual calls
 dbWriteTable(con, "referrals_media", referrals_media, append = T)
@@ -310,7 +310,7 @@ dbAppendTable(con, "traffic_all", traffic_all)
 
 write_xlsx(dfs, path = ss)
 
-
+dbDisconnect(con)
 
 # Used for importing large historical data
 # traffic_all_total <- traffic_all
