@@ -9,9 +9,26 @@ load_dot_env('Renviron.env')
 ### get referral sites
 referralSites <- read.xlsx('Referral Site Categories.xlsx', sheet = 'All Referral Sites')
 
+# get most recent date_added from MySQL
+
+con <- dbConnect(
+  RMariaDB::MariaDB(),
+  dbname = 'rmi_GA4',
+  username = Sys.getenv('DBASE_USER'),
+  password = Sys.getenv("DBASE_PWD"),
+  host = Sys.getenv('DBASE_IP'),
+  port = '3306',
+  ssl.ca = normalizePath("C:\\Users\\ghoffman\\OneDrive - RMI\\01. Projects\\DigiCertGlobalRootCA.crt.pem")
+)
+
+query <- "SELECT max(date_added) FROM traffic_all"
+mostRecent <- dbGetQuery(con, query)
+
+
 currentDate <- paste(Sys.Date())
 dayBefore <- paste(as.Date(currentDate) - days(1))
-weekBefore <- paste(as.Date(currentDate) - days(7))
+#weekBefore <- paste(as.Date(currentDate) - days(7))
+weekBefore <- paste(as.Date(mostRecent$`max(date_added)`))
 oneYearAgo <- ymd(currentDate) - years(1)
 
 
