@@ -9,8 +9,10 @@ load_dot_env('Renviron.env')
 ### get referral sites
 referralSites <- read.xlsx('Referral Site Categories.xlsx', sheet = 'All Referral Sites')
 
-# get most recent date_added from MySQL
+# PEM cert file location
+cert <- normalizePath("C:\\Users\\ghoffman\\OneDrive - RMI\\01. Projects\\DigiCertGlobalRootCA.crt.pem")
 
+# get most recent date_added from MySQL
 con <- dbConnect(
   RMariaDB::MariaDB(),
   dbname = 'rmi_GA4',
@@ -18,39 +20,32 @@ con <- dbConnect(
   password = Sys.getenv("DBASE_PWD"),
   host = Sys.getenv('DBASE_IP'),
   port = '3306',
-  ssl.ca = normalizePath("C:\\Users\\ghoffman\\OneDrive - RMI\\01. Projects\\DigiCertGlobalRootCA.crt.pem")
+  ssl.ca = cert
 )
 
 query <- "SELECT max(date_added) FROM traffic_all"
+
 mostRecent <- dbGetQuery(con, query)
-
-
 currentDate <- paste(Sys.Date())
-dayBefore <- paste(as.Date(currentDate) - days(1))
-#weekBefore <- paste(as.Date(currentDate) - days(7))
-weekBefore <- paste(as.Date(mostRecent$`max(date_added)`))
 oneYearAgo <- ymd(currentDate) - years(1)
 
+# Data range set as day before today and most recent date in database
+dayBefore <- paste(as.Date(currentDate) - days(1))
+weekBefore <- paste(as.Date(mostRecent$`max(date_added)`))
+dateRangeGA <- c(paste(weekBefore), paste(dayBefore))
 
-#twoBefore <- paste(as.Date(currentDate) - days(2))
+
 ## GA Authentication
 ga_auth(email = "ghoffman@rmi.org")
-
 
 #' set GA variables and property ID
 rmiPropertyID <- 354053620
 metadataGA4 <- ga_meta(version = "data", rmiPropertyID)
-dateRangeGA <- c(paste(weekBefore), paste(dayBefore))
-
-#dateRangeGA <- c(paste(weekBefore), paste(dayBefore))
 
 ## set export
 ss <- 'ParsleyReplaceDataset.xlsx'
 
-
 ## Dbase connection
-# library(RMariaDB)
-# 
 con <- dbConnect(
         RMariaDB::MariaDB(),
         dbname = 'rmi_GA4',
@@ -58,58 +53,8 @@ con <- dbConnect(
         password = Sys.getenv("DBASE_PWD"),
         host = Sys.getenv('DBASE_IP'),
         port = '3306',
-        ssl.ca = normalizePath("C:\\Users\\ghoffman\\OneDrive - RMI\\01. Projects\\DigiCertGlobalRootCA.crt.pem")
+        ssl.ca = cert
       )
-
-# dbWriteTable(con, 'geographyTraffic', geographyTraffic)
-
- # a <- dbListTables(con)
-# 
-# b <- as.character("allTraffic" , "campaignNewsletters" ,"campaignPosts"  ,  "contentSummary" ,   "donations", 
-#           "geographyTraffic"  ,  "mediaReferrals"  ,    "SFcampaigns"   ,      "socialTraffic"    ,   "targetCampaign")
-# 
-# 
-# readxl::excel_sheets('OCI+ Dashboard Dataset.xlsx')
-# 
-# for(i in readxl::excel_sheets('OCI+ Dashboard Dataset.xlsx')){
-#   df <- read.xlsx('OCI+ Dashboard Dataset.xlsx', sheet = i, detectDates = TRUE)
-#   dbWriteTable(con, i, df, append = TRUE)
-# 
-# }
-
-#' SUMMARY
-#' 1. Pulls list of pages from campaign key file
-#' 2. Gets page title and metadata by webscraping provided URLs
-#' 3. For all pages
-#'      Get key metrics - page views, users, engagement duration
-#'      Get acquisition data - sessions + conversions - broken down by channel
-#'      Get social media acquisition data - sessions
-#'      Get page views broken down by country and region
-#'      Get page traffic - sessions - driven by referral sources that have been identified as “Media” 
-#'        - These sources are defined in the referralSites file
-
-
-
-# Sitewide metrics
-
-# □ Traffic source (acquisition)
-# ® Take a look at the referral categories
-# ® May want to parse out more granular to differentiate different news outlets vs. other RMI pages vs. social traffic
-# □ Geography
-# ® Country level (need)
-# ® State level (nice to have)
-# □ Engaged page views
-# ® Number
-# ® Rate
-# □ Time spent on page
-# □ Users
-# ® Returning
-# ® New
-# □ Conversions
-# ® Report downloads
-# ® Online donations (via GA4 Goal)
-# ® Event reg (Goal)
-# Email sign up (Goal)
 
 
 # Get all pages on rmi.org to use as reference table.
@@ -127,15 +72,13 @@ pages_filter <- pages %>%
   filter(pageTitle != 'Page not found - RMI') %>%
   filter(pageTitle != '(not set)') %>%
   filter(pageTitle != '') %>%
-  filter(!grepl('rmi.org/people', fullPageUrl)) %>%
+  filter(!grepl('rmi.org/people', fullPageUrl)) %>% 
   filter(screenPageViews > 99) %>%
   mutate(pageURL = paste('http://', fullPageUrl, sep = ''), pageTitle = gsub(' - RMI', '', pageTitle),
          site = 'rmi.org', metadata = '', pageType = '')
 
 
-# people_pages <- pages %>%
-#   filter(grepl('rmi.org/people', fullPageUrl))
-         
+
 ############# Working section for testing/exploration
 
 # test_date <- ga_data(
@@ -242,7 +185,6 @@ allTraffic <- allTraffic %>%
 
 #########################################################
 
-  
 # page titles and IDs from database
 query <- dbSendQuery(con, "SELECT Id, pageTitle FROM rmi_pages")
 db_pages <- dbFetch(query)
@@ -305,7 +247,7 @@ con <- dbConnect(
   password = Sys.getenv("DBASE_PWD"),
   host = Sys.getenv('DBASE_IP'),
   port = '3306',
-  ssl.ca = normalizePath("C:\\Users\\ghoffman\\OneDrive - RMI\\01. Projects\\DigiCertGlobalRootCA.crt.pem")
+  ssl.ca = cert
 )
 
 
