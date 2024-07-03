@@ -35,6 +35,7 @@ weekBefore <- paste(as.Date(mostRecent$`max(date_added)`))
 dateRangeGA <- c(paste(weekBefore), paste(dayBefore))
 
 
+
 ## GA Authentication
 ga_auth(email = "ghoffman@rmi.org")
 
@@ -76,7 +77,6 @@ pages_filter <- pages %>%
   filter(screenPageViews > 99) %>%
   mutate(pageURL = paste('http://', fullPageUrl, sep = ''), pageTitle = gsub(' - RMI', '', pageTitle),
          site = 'rmi.org', metadata = '', pageType = '')
-
 
 
 ############# Working section for testing/exploration
